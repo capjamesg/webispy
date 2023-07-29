@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>I Spy, on the Web 🔎</title>
+        <style>
+            :root {
+                --primary-color: #ffcccc;
+                --secondary-color: #635eff;
+                --tertiary-color: #ffcccc;
+                --link-color: #1b7c0c;
+            }
+            html, body {
+                background-color: var(--primary-color);
+                font-family: 'Montserrat', sans-serif;
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            nav {
+                background-color: var(--secondary-color);
+                padding: 1rem;
+                text-align: center;
+                box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
+                color: white;
+            }
+            main {
+                margin: 0 auto;
+                max-width: 800px;
+                padding: 1rem;
+                background-color: white;
+                border-radius: 2em;
+                margin-top: 2em;
+                box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
+            }
+            h2 {
+                text-align: center;
+                color: var(--secondary-color);
+                font-size: 2rem;
+            }
+            p, ul, li {
+                font-size: 1.2rem;
+            }
+            a {
+                text-decoration: none;
+                border-bottom: 2px dashed lightseagreen;
+                color: lightseagreen;
+            }
+            footer {
+                text-align: center;
+                color: var(--secondary-color);
+            }
+            #guesses {
+                list-style-type: none;
+                display: flex;
+                padding: 0;
+                justify-content: center;
+            }
+            #guesses li {
+                margin: 0 1rem;
+                background-color: blanchedalmond;
+                border-radius: 1em;
+            }
+            #guesses img {
+                max-width: 200px;
+                max-height: 200px;
+                height: auto;
+                border-radius: 1em 1em 0 0;
+            }
+            #guesses p {
+                text-align: center;
+                margin: 0;
+                padding: 0.5rem;
+                font-size: 1.2rem;
+            }
+            button, input[type=file] {
+                background-color: var(--secondary-color);
+                color: white;
+                border: none;
+                padding: 1rem;
+                border-radius: 1em;
+                font-size: 1.2rem;
+                cursor: pointer;
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+                margin-bottom: 10px;
+            }
+            #image_control_button {
+                background-color: var(--primary-color);
+                color: var(--secondary-color);
+            }
+            label {
+                display: block;
+                text-align: center;
+                font-size: 1.2rem;
+                margin-bottom: 10px;
+                font-weight: bold;
+            }
+            hr {
+                border: none;
+                border-bottom: 1px solid lightgray;
+                margin: 2rem 0;
+            }
+            dialog {
+                border-radius: 1em;
+                padding: 1rem;
+                background-color: white;
+            }
+            #intro {
+                max-width: 75%;
+                margin: auto;
+            }
+            @media screen and (max-width: 600px) {
+                #intro {
+                    max-width: 100%;
+                }
+                main {
+                    margin: 1em;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <h1>I Spy</h1>
+        </nav>
+        <main>
+            <section id="intro">
+                <h2>A cool web guessing game 🧊</h2>
+                <p>This is I, Spy with two twists:</p>
+                <ul>
+                    <li>It's on the web</li>
+                    <li>You guess with images, not words</li>
+                </ul>
+                <p>I, Spy has an image that rotates daily.</p>
+                <p>To participate, take a photo and upload it below.</p>
+                <p>Your image will be compared to the daily image.</p>
+                <p>If your image is similar enough, you win! Let's play!</p>
+            </section>
+            <hr>
+            <label for="file">Upload an image</label>
+            <input type="file" name="file" accept="image/*" id="file">
+            <button onclick="getSimilarity(document.getElementById('file').files[0])">Upload Image</button>
+            <p style="text-align: center;">or</p>
+            <button onclick="takeAPhoto()" id="image_control_button">Enable Camera</button>
+            <hr>
+            <h2>Your Guesses</h2>
+            <ul id="guesses">
+                <p>Upload an image to get started.</p>
+            </ul>
+            <video style="display: none;"></video>
+        </main>
+        <footer>
+            <p>Made with love in an hour by <a href="https://jamesg.blog">capjamesg</a>.</p>
+        </footer>
+        <dialog id="winner">
+            <h2>🎉 You win! 🎉</h2>
+            <p>Congratulations! You correctly guessed the image.</p>
+            <button onclick="window.location.reload()">Play again 🎮</button>
+            <button onclick="document.getElementById('winner').close()">Close</button>
+        </dialog>
+        <script>
+            var API_URL = "http://localhost:5000";
+            var last_guess = 0;
+            
+            function takeAPhoto () {
+                var constraints = { audio: false, video: true };
+                if (navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia(constraints)
+                    .then(function (stream) {
+                        // get a user to take a photo
+                        var video = document.querySelector("video");
+                        video.srcObject = stream;
+                        video.onloadedmetadata = function (e) {
+                            video.play();
+                        };
+
+                        // change the button text
+                        var button = document.getElementById("image_control_button");
+                        button.innerHTML = "Take Photo";
+
+                        // change the button action
+                        button.onclick = function () {
+                            var canvas = document.createElement("canvas");
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            var context = canvas.getContext("2d");
+                            context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                            var data = canvas.toDataURL("image/png");
+                            stream.getTracks().forEach(function (track) {
+                                track.stop();
+                            });
+                            getSimilarity(data);
+                        };
+                    })
+                    .catch(function (err) {
+                        console.error(err);
+                    });
+                } else {
+                    console.error("getUserMedia not supported");
+                }
+            }
+
+            function getSimilarity (image) {
+                // if base64, convert to blob
+                if (typeof image == "string") {
+                    var binaryString = atob(image.split(",")[1]);
+                    var bytes = new Uint8Array(binaryString.length);
+                    for (var i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    image = new Blob([bytes], { type: "image/png" });
+                }
+
+                var formData = new FormData();
+                formData.append("file", image);
+                fetch(API_URL + "/", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    var similarity = data.similarity * 100;
+                    var result = null;
+                    var winning_threshold = data.winning_threshold * 100;
+
+                    similarity = Math.round(similarity);
+
+                    if (last_guess == 0) {
+                        var guesses = document.getElementById("guesses");
+                        guesses.innerHTML = "";
+                    }
+
+                    if (similarity > last_guess) {
+                        result = "Warmer";
+                    } else {
+                        result = "Colder";
+                    }
+
+                    if (similarity >= winning_threshold) {
+                        result = "You win!";
+                        var dialog = document.getElementById("winner");
+                        dialog.showModal();
+                    }
+                    
+                    last_guess = similarity;
+
+                    var guesses = document.getElementById("guesses");
+                    var guess = document.createElement("li");
+
+                    var imageUrl = window.URL.createObjectURL(image);
+                    guesses.innerHTML += `
+                        <li>
+                            <img src="${imageUrl}" alt="Your guess">
+                            <p>${result}</p>
+                        </li>
+                    `;
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+            }
+        </script>
+    </body>
+</html>
