@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify
 import clip
 import torch
+from flask import Flask, jsonify, render_template, request
 from PIL import Image
 
-WINNING_THRESHOLD = 0.65  # 75% confidence
+# 65% confidence
+WINNING_THRESHOLD = 0.65
 STARTER_IMAGE = "cats.jpeg"
 STARTER_ANSWER = "a cat"
 
@@ -35,9 +36,12 @@ def home():
                 image_features.cpu(), user_image_features.cpu()
             )
 
-        return jsonify({"similarity": similarity.item(), "winning_threshold": WINNING_THRESHOLD})
+        return jsonify(
+            {"similarity": similarity.item(), "winning_threshold": WINNING_THRESHOLD}
+        )
 
     return render_template("index.html")
+
 
 if __name__ == "__main__":
     app.run(debug=True)
